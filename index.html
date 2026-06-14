@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday, Dad!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #282828;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        canvas {
+            background: #87CEEB;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<!-- Hidden audio element for your music -->
+<audio id="bgMusic" src="music.mp3" loop></audio>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const bgMusic = document.getElementById("bgMusic");
+
+// States
+const STATE_WALKING = 0;
+const STATE_HANDOVER = 1;
+const STATE_OPENING_LETTER = 2;
+const STATE_CARD_REVEAL = 3;
+let currentState = STATE_WALKING;
+
+// Variables
+let mailmanX = -100;
+let dadX = 550;
+const groundY = 450;
+let cardOpened = false;
+let treeRotation = 0;
+let scrollX = 800;
+
+const birthdayMessage = "⭐ HAPPY BIRTHDAY, DAD! ⭐ WISHING YOU THE BEST DAY EVER! ⭐ THANK YOU FOR EVERYTHING YOU DO! ⭐     ";
+
+// Setup Petals
+const petals = [];
+for (let i = 0; i < 35; i++) {
+    petals.push({
+        x: Math.random() * 600 + 100,
+        y: Math.random() * -600,
+        speed: Math.random() * 1.5 + 1.5,
+        size: Math.random() * 4 + 4,
+        phase: Math.random() * 100
+    });
+}
+
+function drawStickFigure(x, y, bodyColor, headColor, hasHat = false) {
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = bodyColor;
+    ctx.fillStyle = headColor;
+    
+    // Head
+    ctx.beginPath();
+    ctx.arc(x, y, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Body
+    ctx.beginPath();
+    ctx.moveTo(x, y + 15);
+    ctx.lineTo(x, y + 60);
+    // Legs
+    ctx.moveTo(x, y + 60);
+    ctx.lineTo(x - 15, y + 100);
+    ctx.moveTo(x, y + 60);
+    ctx.lineTo(x + 15, y + 100);
+    ctx.stroke();
+
+    if (hasHat) {
+        ctx.fillStyle = "#000080";
+        ctx.fillRect(x - 20, y - 22, 40, 10);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#000000";
+        ctx.beginPath();
+        ctx.moveTo(x - 20, y - 12);
+        ctx.lineTo(x + 25, y - 12);
+        ctx.stroke();
+    }
+}
+
+function drawLetter(x, y) {
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(x, y, 60, 40);
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, 60, 40);
+    
+    ctx.fillStyle = "#DC143C";
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 30, y + 20);
+    ctx.lineTo(x + 60, y);
+    ctx.fill();
+}
+
+function drawCherryTree(cx, cy, angleDeg) {
+    const rad = angleDeg * Math.PI / 180;
+    
+    // Trunk
+    ctx.fillStyle = "#8B4513";
+    ctx.fillRect(cx - 15, cy, 30, 120);
+    
+    // Branches
+    const numBranches = 8;
+    for (let i = 0; i < numBranches; i++) {
+        let branchAngle = rad + (i * (2 * Math.PI / numBranches));
+        let bx = cx + Math.cos(branchAngle) * 90;
+        let by = cy - 40 + Math.sin(branchAngle) * 35;
+        
+        ctx.fillStyle = "rgba(255, 182, 193, 0.9)";
+        ctx.beginPath(); ctx.arc(bx, by, 50, 0, Math.PI*2); ctx.fill();
+        
+        ctx.fillStyle = "rgba(255, 105, 180, 0.8)";
+        ctx.beginPath(); ctx.arc(bx + 10, by - 5, 30, 0, Math.PI*2); ctx.fill();
+        
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.beginPath(); ctx.arc(bx - 15, by + 10, 20, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+function drawOpenedCard() {
+    ctx.fillStyle = "#FFD700";
+    ctx.fillRect(50, 40, 700, 520);
+    ctx.fillStyle = "#FFFDEE";
+    ctx.fillRect(70, 60, 660, 480);
+    
+    ctx.fillStyle = "#FF69B4";
+    ctx.font = "bold 36px Georgia";
+    ctx.textAlign = "center";
+    ctx.fillText("Happy Birthday, Dad!", 400, 120);
+}
+
+// Global Click Trigger
+canvas.addEventListener("click", () => {
+    if (currentState === STATE_HANDOVER) {
+        currentState = STATE_OPENING_LETTER;
+    } else if (currentState === STATE_OPENING_LETTER) {
+        currentState = STATE_CARD_REVEAL;
+    } else if (currentState === STATE_CARD_REVEAL && !cardOpened) {
+        cardOpened = true;
+        bgMusic.play().catch(e => console.log("Audio play blocked until click: ", e));
+    }
+});
+
+function gameLoop() {
+    // 1. Scene Background Clears
+    if (currentState !== STATE_CARD_REVEAL) {
+        ctx.fillStyle = "#87CEEB";
+        ctx.fillRect(0, 0, 800, 600);
+        ctx.fillStyle = "#228B22";
+        ctx.fillRect(0, groundY, 800, 150);
+    } else {
+        ctx.fillStyle = "#282828";
+        ctx.fillRect(0, 0, 800, 600);
+        drawOpenedCard();
+    }
+
+    // 2. State Controller Logic
+    if (currentState === STATE_WALKING) {
+        if (mailmanX < 420) {
+            mailmanX += 3;
+        } else {
+            currentState = STATE_HANDOVER;
+        }
+        drawStickFigure(mailmanX, groundY - 100, "#0000FF", "#E6BE96", true);
+        drawStickFigure(dadX, groundY - 100, "#643296", "#F0C8A0", false);
+        drawLetter(mailmanX + 25, groundY - 60);
+        
+        ctx.fillStyle = "#000000";
+        ctx.font = "bold 20px Arial";
+        ctx.textAlign = "left";
+        ctx.fillText("A mailman is arriving...", 20, 40);
+
+    } else if (currentState === STATE_HANDOVER) {
+        drawStickFigure(mailmanX, groundY - 100, "#0000FF", "#E6BE96", true);
+        drawStickFigure(dadX, groundY - 100, "#643296", "#F0C8A0", false);
+        drawLetter(dadX - 45, groundY - 60);
+        
+        ctx.fillStyle = "#000000";
+        ctx.font = "bold 20px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Click anywhere to take the letter from the mailman!", 400, 40);
+
+    } else if (currentState === STATE_OPENING_LETTER) {
+        if (mailmanX > -50) mailmanX -= 3;
+        drawStickFigure(mailmanX, groundY - 100, "#0000FF", "#E6BE96", true);
+        drawStickFigure(dadX, groundY - 100, "#643296", "#F0C8A0", false);
+        drawLetter(dadX - 10, groundY - 120);
+        
+        ctx.fillStyle = "#000000";
+        ctx.font = "bold 20px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Click anywhere to open the envelope and see the card!", 400, 40);
+
+    } else if (currentState === STATE_CARD_REVEAL) {
+        if (!cardOpened) {
+            ctx.fillStyle = "#FF69B4";
+            ctx.fillRect(250, 220, 300, 180);
+            ctx.strokeStyle = "#FFD700";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(250, 220, 300, 180);
+            
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("Click Card to Open It!", 400, 315);
+        } else {
+            // Spin Tree
+            treeRotation += 1.5;
+            drawCherryTree(400, 350, treeRotation);
+            
+            // Draw Falling Petals
+            petals.forEach(p => {
+                p.y += p.speed;
+                p.phase += 0.04;
+                let swayX = p.x + Math.sin(p.phase) * 15;
+                
+                ctx.fillStyle = "#FF69B4";
+                ctx.beginPath();
+                ctx.arc(swayX, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                if (p.y > 490) {
+                    p.y = Math.random() * -50;
+                    p.x = Math.random() * 560 + 120;
+                }
+            });
+
+            // Ticker Banner
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(75, 500, 650, 35);
+            ctx.clip();
+            
+            ctx.fillStyle = "#000000";
+            ctx.font = "bold 22px Courier New";
+            ctx.textAlign = "left";
+            ctx.fillText(birthdayMessage, scrollX, 525);
+            ctx.restore();
+            
+            scrollX -= 2;
+            if (scrollX < 75 - ctx.measureText(birthdayMessage).width) {
+                scrollX = 720;
+            }
+        }
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>
